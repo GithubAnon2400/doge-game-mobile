@@ -1,5 +1,5 @@
-const supabaseUrl = 'your-supabase-url';
-const supabaseKey = 'your-supabase-anon-key';
+const supabaseUrl = 'https://xxqyareohehpwfsxdnbk.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cXlhcmVvaGVocHdmc3hkbmJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA2ODkwNDgsImV4cCI6MjA1NjI2NTA0OH0.LhfgV84xufdxrlF1TMY5nLgZ5M661PdcpmRWO_VDwD8';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
 async function submitScore(initials, score, email) {

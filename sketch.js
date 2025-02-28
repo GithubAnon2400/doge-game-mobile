@@ -35,6 +35,7 @@ let totalSaved = 0;
 let startButton, stopButton;
 let nextTurnTimer = 0;
 let delayBetweenTurns = 3000; // 3 seconds delay between audits
+let startSound, stopSound, gainSound, lossSound, celebrateSound;
 
 // Classes
 class Particle {
@@ -94,23 +95,18 @@ function shuffleOutcomes() {
   }
 }
 
-// Setup
-function setup() {
-  createCanvas(windowWidth, windowHeight);
-  textAlign(CENTER, CENTER);
-  textFont('Arial');
-
-  // Load images
-  loadImage(
-    'https://raw.githubusercontent.com/githubanon2400/doge-game/main/assets/elon_cartoon.png',
+// Preload
+function preload() {
+  elonImage = loadImage(
+    'https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/elon_cartoon.png',
     img => {
       elonImage = img;
       isElonImageLoaded = true;
     },
     () => console.error('Failed to load Elon image')
   );
-  loadImage(
-    'https://raw.githubusercontent.com/githubanon2400/doge-game/main/assets/shiba_laster.png',
+  dogeImage = loadImage(
+    'https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/shiba_laster.png',
     img => {
       dogeImage = img;
       isDogeImageLoaded = true;
@@ -118,24 +114,19 @@ function setup() {
     () => console.error('Failed to load DOGE image')
   );
 
-  // Initialize outcomes
-  outcomes = [
-    { type: 'gain', amount: random(500, 2000), color: [255, 0, 0], 
-      label: 'FOUND $1M STUDY ON POLITICIAN LIES 🤥\nSaved taxpayers from "honesty research".' },
-    { type: 'gain', amount: random(1000, 3000), color: [0, 255, 0], 
-      label: 'CANCELLED $2B SQUIRREL RECYCLING PROGRAM 🐿️\nNo more eco-nuts.' },
-    { type: 'gain', amount: random(2000, 5000), color: [0, 0, 255], 
-      label: 'RECOVERED $5B FROM "HOW TO SPEND MONEY" SEMINAR 📚\nTaught them for free.' },
-    { type: 'gain', amount: random(3000, 6000), color: [255, 255, 0], 
-      label: 'STOPPED $3B GOLD-PLATED TOILET INITIATIVE 🚽\nFlushed the waste away.' },
-    { type: 'gain', amount: random(1000, 4000), color: [0, 255, 255], 
-      label: 'CUT $1.5B ON INVISIBLE BRIDGE RESEARCH 🌉\nNowhere to go!' },
-    { type: 'rugpull', color: [255, 0, 0], 
-      label: 'BUREAUCRATS BUY $10K STAPLERS 🖇️\nGame over, fancy office wins.' },
-    { type: 'rugpull', color: [255, 0, 0], 
-      label: 'FUNDED $20B CAT VIDEO ARCHIVE 😺\nPurr-fect waste detected.' }
-  ];
-  shuffleOutcomes();
+  // Load sound effects
+  startSound = loadSound('https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/start.mp3');
+  stopSound = loadSound('https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/stop.mp3');
+  gainSound = loadSound('https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/gain.mp3');
+  lossSound = loadSound('https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/loss.mp3');
+  celebrateSound = loadSound('https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/celebrate.mp3');
+}
+
+// Setup
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  textAlign(CENTER, CENTER);
+  textFont('Arial');
 
   // Create particles
   let particleCount = windowWidth < 600 ? 20 : 40;
@@ -342,6 +333,7 @@ function startFlashing() {
     startTime = millis();
     timeLeft = 5000; // 5 seconds
     isFirstTurn = false;
+    if (startSound) startSound.play(); // Play start sound
   }
 }
 
@@ -350,6 +342,7 @@ function stopFlashing() {
     isFlashing = false;
     state = 'processing';
     lastOutcomeTime = millis();
+    if (stopSound) stopSound.play(); // Play stop sound
     applyOutcome(currentIndex);
   }
 }
@@ -368,11 +361,14 @@ function applyOutcome(i) {
     message = random(reactions);
     if (amount >= 1000) {
       celebrateWin();
+      if (celebrateSound) celebrateSound.play(); // Play celebrate sound for big wins
     }
     if (currentWallet >= 1000000 && !achievements.includes('Trillionaire')) {
       achievements.push('Trillionaire');
       message += "\nACHIEVEMENT: Trillionaire Savior! 💸";
+      if (celebrateSound) celebrateSound.play(); // Play celebrate sound for achievements
     }
+    if (gainSound) gainSound.play(); // Play gain sound for all positive outcomes
     pendingMultiplier = 1;
     turnNumber++;
     state = 'idle';
@@ -380,6 +376,7 @@ function applyOutcome(i) {
   } else if (outcome.type === 'rugpull') {
     message = `Game Over! Trump: "Swamp wins, sad!" 😡`;
     currentWallet = 0;
+    if (lossSound) lossSound.play(); // Play loss sound for rugpulls
     state = 'idle';
     isEnteringDetails = true;
     createInputFields();
@@ -409,7 +406,7 @@ function shareOnX() {
   saveCanvas('DOGE_Score', 'png');
   const score = formatMoney(highestWallet);
   const text = `I saved ${score} in DOGE: THE GAME! Beat me if you can! #DOGETheGame`;
-  const url = 'https://githubanon2400.github.io/doge-game/';
+  const url = 'https://[your-username].github.io/doge-game/';
   window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
 }
 

@@ -1,439 +1,227 @@
 // Global variables
-let currentWallet = 0;
+let currentWallet = 0; // Now in raw dollars, scaled to millions/billions
 let turnNumber = 1;
 let state = 'idle';
-let message = 'Press START to begin auditing government waste!';
-let isFlashing = false;
-let currentIndex = 0;
-let turnHistory = [];
-let particles = [];
-let confetti = [];
-let outcomes = [];
-let scrollOffset = 0;
-let maxScrollOffset = 0;
-let startTime;
-let timeLeft;
-let lastOutcomeTime;
-let pendingMultiplier = 1;
-let isEnteringDetails = false;
-let playerInitials = '';
-let playerEmail = '';
-let inputField = null;
-let emailField = null;
-let leaderboardData = [];
-let showingLeaderboard = false;
-let highestWallet = 0;
-let elonImage = null;
-let dogeImage = null;
+let gameOver = false;
 let isElonImageLoaded = false;
 let isDogeImageLoaded = false;
-let isShareButtonHovered = false;
-let isFirstTurn = true;
-let reactionTimer = 0;
-let achievements = [];
-let totalSaved = 0;
-let startButton, stopButton;
+let elonImage, dogeImage;
+let currentIndex;
+let flashingStartTime;
+let flashDuration = 1500;
+let shakeOffset = 0;
+let shakeDuration = 0;
+let showShiba = false;
+let shibaDisplayTime = 0;
+let shibaDisplayDuration = 1000;
 
-// Classes
-class Particle {
-  constructor() {
-    this.x = random(windowWidth);
-    this.y = random(windowHeight);
-    this.size = random(2, 5);
-    this.speedX = random(-1, 1);
-    this.speedY = random(-1, 1);
-  }
-  move() {
-    this.x += this.speedX;
-    this.y += this.speedY;
-    if (this.x < 0 || this.x > windowWidth) this.speedX *= -1;
-    if (this.y < 0 || this.y > windowHeight) this.speedY *= -1;
-  }
-  display() {
-    noStroke();
-    fill(150, 150, 255, 100);
-    ellipse(this.x, this.y, this.size);
-  }
+// Outcomes in millions and billions (raw dollars)
+let outcomes = [
+  // Positive outcomes (gains)
+  { label: "Tax loophole found! +$1bn", type: "gain", amount: 1000000000, color: [0, 255, 0] }, // $1 billion
+  { label: "New efficiency law! +$750m", type: "gain", amount: 750000000, color: [0, 255, 0] }, // $750 million
+  { label: "Elon tweets support! +$500m", type: "gain", amount: 500000000, color: [0, 255, 0] }, // $500 million
+  { label: "Coffee budget approved! +$200m", type: "gain", amount: 200000000, color: [0, 255, 0] }, // $200 million
+  { label: "Intern finds $400m in a drawer!", type: "gain", amount: 400000000, color: [0, 255, 0] }, // $400 million
+  // Negative outcomes: Large random losses (set in applyOutcome)
+  { label: "Paperwork avalanche! -$(random)", type: "loss", amount: 0, color: [255, 165, 0] },
+  { label: "Caught in red tape! -$(random)", type: "loss", amount: 0, color: [255, 165, 0] },
+  // Negative outcomes: Game over (reset to zero)
+  { label: "Bureaucratic gremlins bankrupt you! Game Over", type: "gameover", amount: 0, color: [255, 0, 0] },
+  { label: "Form 47-B rejected! Total collapse!", type: "gameover", amount: 0, color: [255, 0, 0] },
+  { label: "Endless meeting tax drains all! Game Over", type: "gameover", amount: 0, color: [255, 0, 0] }
+];
+
+// Preload images
+function preload() {
+  elonImage = loadImage('elon_cartoon.png', () => isElonImageLoaded = true);
+  dogeImage = loadImage('shiba_laser.png', () => isDogeImageLoaded = true);
 }
 
-class ConfettiParticle {
-  constructor() {
-    this.x = random(windowWidth);
-    this.y = random(-50, 0);
-    this.size = random(5, 15);
-    this.color = [random(255), random(255), random(255)];
-    this.speed = random(2, 5);
-  }
-  move() {
-    this.y += this.speed;
-  }
-  display() {
-    noStroke();
-    fill(this.color[0], this.color[1], this.color[2]);
-    ellipse(this.x, this.y, this.size);
-  }
-}
-
-// Utility Functions
-function formatMoney(amount) {
-  if (amount >= 1000000) {
-    return '$' + (amount / 1000000).toFixed(2) + 'T';
-  } else if (amount >= 1000) {
-    return '$' + (amount / 1000).toFixed(2) + 'B';
-  } else {
-    return '$' + amount.toFixed(2) + 'M';
-  }
-}
-
-function shuffleOutcomes() {
-  for (let i = outcomes.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [outcomes[i], outcomes[j]] = [outcomes[j], outcomes[i]];
-  }
-}
-
-// Setup
+// Setup function
 function setup() {
   createCanvas(windowWidth, windowHeight);
-  textSize(windowWidth / 20);
-  textAlign(CENTER, CENTER);
   textFont('Arial');
-
-  // Load images
-  loadImage(
-    'https://raw.githubusercontent.com/githubanon2400/doge-game/main/assets/elon_cartoon.png',
-    img => {
-      elonImage = img;
-      isElonImageLoaded = true;
-    },
-    () => console.error('Failed to load Elon image')
-  );
-  loadImage(
-    'https://raw.githubusercontent.com/githubanon2400/doge-game/main/assets/shiba_laser.png',
-    img => {
-      dogeImage = img;
-      isDogeImageLoaded = true;
-    },
-    () => console.error('Failed to load DOGE image')
-  );
-
-  // Initialize outcomes
-  outcomes = [
-    { type: 'gain', amount: random(500, 2000), color: [255, 0, 0], 
-      label: 'FOUND $1M STUDY ON POLITICIAN LIES 🤥\nSaved taxpayers from "honesty research".' },
-    { type: 'gain', amount: random(1000, 3000), color: [0, 255, 0], 
-      label: 'CANCELLED $2B SQUIRREL RECYCLING PROGRAM 🐿️\nNo more eco-nuts.' },
-    { type: 'gain', amount: random(2000, 5000), color: [0, 0, 255], 
-      label: 'RECOVERED $5B FROM "HOW TO SPEND MONEY" SEMINAR 📚\nTaught them for free.' },
-    { type: 'gain', amount: random(3000, 6000), color: [255, 255, 0], 
-      label: 'STOPPED $3B GOLD-PLATED TOILET INITIATIVE 🚽\nFlushed the waste away.' },
-    { type: 'gain', amount: random(1000, 4000), color: [0, 255, 255], 
-      label: 'CUT $1.5B ON INVISIBLE BRIDGE RESEARCH 🌉\nNowhere to go!' },
-    { type: 'rugpull', color: [255, 0, 0], 
-      label: 'BUREAUCRATS BUY $10K STAPLERS 🖇️\nGame over, fancy office wins.' },
-    { type: 'rugpull', color: [255, 0, 0], 
-      label: 'FUNDED $20B CAT VIDEO ARCHIVE 😺\nPurr-fect waste detected.' }
-  ];
-  shuffleOutcomes();
-
-  // Create particles
-  let particleCount = windowWidth < 600 ? 20 : 40;
-  for (let i = 0; i < particleCount; i++) {
-    particles.push(new Particle());
-  }
-
-  // Create buttons
-  startButton = createButton('START AUDIT');
-  startButton.position(windowWidth / 2 - 60, windowHeight / 2 + 50);
-  startButton.mousePressed(startFlashing);
-  startButton.style('font-size', `${windowWidth / 25}px`);
-  startButton.style('padding', '10px');
-  startButton.hide();
-
-  stopButton = createButton('STOP');
-  stopButton.position(windowWidth / 2 - 50, windowHeight - 100);
-  stopButton.mousePressed(stopFlashing);
-  stopButton.style('font-size', `${windowWidth / 20}px`);
-  stopButton.style('padding', '15px');
-  stopButton.hide();
+  textAlign(CENTER);
+  textSize(windowWidth / 25);
 }
 
-function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
-  startButton.position(windowWidth / 2 - 60, windowHeight / 2 + 50);
-  stopButton.position(windowWidth / 2 - 50, windowHeight - 100);
-  textSize(windowWidth / 20);
-}
-
-// Draw
+// Draw function
 function draw() {
-  background(20);
-
-  // Draw particles
-  for (let particle of particles) {
-    particle.move();
-    particle.display();
+  background(0);
+  
+  if (gameOver) {
+    drawGameOver();
+    return;
   }
-
-  // Draw confetti
-  for (let i = confetti.length - 1; i >= 0; i--) {
-    let c = confetti[i];
-    c.move();
-    c.display();
-    if (c.y > windowHeight) {
-      confetti.splice(i, 1);
+  
+  // Apply screen shake if active
+  if (shakeDuration > millis()) {
+    translate(random(-shakeOffset, shakeOffset), random(-shakeOffset, shakeOffset));
+  }
+  
+  // Draw Elon cartoon
+  drawElon();
+  
+  // Handle flashing state
+  if (state === 'flashing') {
+    drawFlashingOutcome();
+    if (millis() - flashingStartTime > flashDuration) {
+      state = 'idle';
     }
   }
-
-  // Draw Elon image
-  if (isElonImageLoaded && elonImage) {
-    image(elonImage, 30, windowHeight - (windowHeight / 3), windowWidth / 4, windowWidth / 4);
-  }
-
-  drawTitle();
+  
+  // Draw Shiba laser if applicable
+  drawShiba();
+  
+  // Draw wallet and audit info
   drawWallet();
-  drawHistoryPanel();
+}
 
-  if (state === 'flashing' || state === 'processing') {
-    drawFlashingOutcome();
-  }
-
-  if (millis() < reactionTimer) {
-    drawDogeReaction();
-  }
-
-  if (showingLeaderboard) {
-    drawLeaderboard();
-  } else if (isEnteringDetails) {
-    drawInputFields();
-  } else {
-    drawMessage();
-  }
-
-  // Button visibility
-  if (state === 'idle' && isFirstTurn) {
-    startButton.show();
-  } else {
-    startButton.hide();
-  }
-  if (state === 'flashing' && isFlashing) {
-    stopButton.show();
-  } else {
-    stopButton.hide();
+// Draw Elon cartoon in bottom-right corner
+function drawElon() {
+  if (isElonImageLoaded && elonImage) {
+    let imgWidth = windowWidth / 5;
+    let imgHeight = imgWidth * (elonImage.height / elonImage.width);
+    image(elonImage, windowWidth - imgWidth - 20, windowHeight - imgHeight - 20, imgWidth, imgHeight);
   }
 }
 
-function drawTitle() {
-  fill(255, 215, 0);
-  text('DOGE: THE GAME', windowWidth / 2, windowHeight / 10);
+// Draw Shiba laser image
+function drawShiba() {
+  if (showShiba && isDogeImageLoaded && dogeImage) {
+    let imgWidth = windowWidth / 3;
+    let imgHeight = imgWidth * (dogeImage.height / dogeImage.width);
+    image(dogeImage, windowWidth / 2 - imgWidth / 2, windowHeight / 2 - imgHeight / 2, imgWidth, imgHeight);
+  }
+  if (millis() > shibaDisplayTime) {
+    showShiba = false;
+  }
 }
 
+// Draw wallet and audit UI
 function drawWallet() {
   fill(255);
-  text(`Wallet: ${formatMoney(currentWallet)}`, windowWidth / 2, windowHeight / 5);
-  text(`Turn: ${turnNumber}`, windowWidth / 2, windowHeight / 4);
-}
-
-function drawHistoryPanel() {
-  let panelWidth = windowWidth / 4;
-  let panelHeight = windowHeight / 2;
-  let panelX = windowWidth - panelWidth - 20;
-  let panelY = 20;
-
-  fill(50, 50, 50, 200);
-  rect(panelX, panelY, panelWidth, panelHeight, 10);
-  
-  fill(255);
+  textSize(windowWidth / 25);
+  text(`Taxpayer Savings: ${formatMoney(currentWallet)}`, windowWidth / 2, windowHeight / 5);
+  text(`Audit: ${turnNumber}`, windowWidth / 2, windowHeight / 4);
   textSize(windowWidth / 30);
-  text('History', panelX + panelWidth / 2, panelY + 30);
-
-  push();
-  translate(panelX, panelY + 60);
-  let historyY = -scrollOffset;
-  for (let i = turnHistory.length - 1; i >= 0; i--) {
-    fill(turnHistory[i].color);
-    textSize(windowWidth / 40);
-    text(turnHistory[i].label, 10, historyY, panelWidth - 20);
-    historyY += textAscent() + 20;
-  }
-  pop();
-
-  maxScrollOffset = Math.max(0, historyY - (panelHeight - 60));
-  scrollOffset = constrain(scrollOffset, 0, maxScrollOffset);
+  text("Click to Audit!", windowWidth / 2, windowHeight / 3);
 }
 
-function drawMessage() {
+// Draw game over screen
+function drawGameOver() {
+  background(50, 0, 0); // Dark red tint
   fill(255);
   textSize(windowWidth / 20);
-  text(message, windowWidth / 2, windowHeight / 2);
+  text("GAME OVER", windowWidth / 2, windowHeight / 2 - windowWidth / 20);
+  textSize(windowWidth / 30);
+  text(`Final Savings: ${formatMoney(currentWallet)}`, windowWidth / 2, windowHeight / 2);
+  text("Click to Restart", windowWidth / 2, windowHeight / 2 + windowWidth / 20);
 }
 
+// Draw flashing outcome with text wrapping
 function drawFlashingOutcome() {
-  if (isFlashing) {
-    currentIndex = floor(random(outcomes.length));
-  }
   let outcome = outcomes[currentIndex];
+  let maxWidth = windowWidth * 0.8;
+  let displayLabel = outcome.label;
+  if (outcome.type === "loss") {
+    let randomLoss = floor(random(500000000, 2000000001)); // $500m to $2bn
+    displayLabel = displayLabel.replace("$(random)", formatMoney(randomLoss).slice(1)); // Remove $ for label
+    outcomes[currentIndex].amount = -randomLoss; // Update amount dynamically
+  }
+  let lines = splitText(displayLabel, maxWidth);
+  
+  push();
+  textAlign(CENTER, CENTER);
   fill(outcome.color[0], outcome.color[1], outcome.color[2]);
   textSize(windowWidth / 20);
-  text(outcome.label, windowWidth / 2, windowHeight / 2);
-}
-
-function drawDogeReaction() {
-  if (isDogeImageLoaded && dogeImage) {
-    image(dogeImage, windowWidth / 2 - (windowWidth / 8), windowHeight / 2 - (windowWidth / 8), windowWidth / 4, windowWidth / 4);
-    stroke(255, random(0, 255), random(0, 255));
-    strokeWeight(5);
-    line(windowWidth / 2 - (windowWidth / 16), windowHeight / 2 - (windowWidth / 16), random(windowWidth), random(windowHeight));
-    line(windowWidth / 2 + (windowWidth / 16), windowHeight / 2 - (windowWidth / 16), random(windowWidth), random(windowHeight));
-  }
-}
-
-function drawInputFields() {
-  fill(255);
-  text('Enter Initials:', windowWidth / 2, windowHeight / 2 - 60);
-  text('Enter Email:', windowWidth / 2, windowHeight / 2 + 20);
-}
-
-async function drawLeaderboard() {
-  fill(0, 0, 0, 200);
-  rect(0, 0, windowWidth, windowHeight);
-  fill(255);
-  textSize(windowWidth / 20);
-  text('Leaderboard', windowWidth / 2, windowHeight / 10);
-  textSize(windowWidth / 30);
-  for (let i = 0; i < leaderboardData.length; i++) {
-    let entry = leaderboardData[i];
-    text(`${i + 1}. ${entry.initials}: ${formatMoney(entry.score)}`, windowWidth / 2, windowHeight / 5 + i * 40);
-  }
-  text(`Total Saved by Players: ${formatMoney(totalSaved)}`, windowWidth / 2, windowHeight - 50);
   
-  let shareX = windowWidth / 2 - 50;
-  let shareY = windowHeight - 100;
-  fill(isShareButtonHovered ? 100 : 50);
-  rect(shareX, shareY, 100, 40, 10);
-  fill(255);
-  textSize(windowWidth / 40);
-  text('Share on X', windowWidth / 2, shareY + 20);
-}
-
-// Game Logic
-function startFlashing() {
-  if (state === 'idle') {
-    isFlashing = true;
-    state = 'flashing';
-    startTime = millis();
-    timeLeft = 5000; // 5 seconds
-    isFirstTurn = false;
+  let yOffset = - (lines.length - 1) * (windowWidth / 40);
+  for (let line of lines) {
+    text(line, windowWidth / 2, windowHeight / 2 + yOffset);
+    yOffset += windowWidth / 40;
   }
+  pop();
 }
 
-function stopFlashing() {
-  if (state === 'flashing' && isFlashing) {
-    isFlashing = false;
-    state = 'processing';
-    lastOutcomeTime = millis();
+// Split text into multiple lines based on max width
+function splitText(text, maxWidth) {
+  let words = text.split(' ');
+  let lines = [];
+  let currentLine = words[0];
+  
+  for (let i = 1; i < words.length; i++) {
+    let word = words[i];
+    let width = textWidth(currentLine + " " + word);
+    if (width < maxWidth) {
+      currentLine += " " + word;
+    } else {
+      lines.push(currentLine);
+      currentLine = word;
+    }
+  }
+  lines.push(currentLine);
+  return lines;
+}
+
+// Apply the outcome logic
+function applyOutcome(i) {
+  let outcome = outcomes[i];
+  if (outcome.type === "gain") {
+    currentWallet += outcome.amount;
+    showShiba = true;
+    shibaDisplayTime = millis() + shibaDisplayDuration;
+  } else if (outcome.type === "loss") {
+    currentWallet = max(0, currentWallet + outcome.amount); // Apply random loss
+    shakeOffset = 5;
+    shakeDuration = millis() + 500;
+  } else if (outcome.type === "gameover") {
+    currentWallet = 0;
+    gameOver = true;
+    shakeOffset = 10;
+    shakeDuration = millis() + 1000;
+  }
+  if (!gameOver) turnNumber++;
+}
+
+// Start the flashing sequence
+function startFlashing() {
+  if (state === 'idle' && !gameOver) {
+    state = 'flashing';
+    flashingStartTime = millis();
+    currentIndex = floor(random(outcomes.length));
     applyOutcome(currentIndex);
   }
 }
 
-function applyOutcome(i) {
-  let outcome = outcomes[i];
-  turnHistory.push({ label: `${turnNumber}: ${outcome.label}`, color: outcome.color });
-  if (outcome.type === 'gain') {
-    let amount = outcome.amount * pendingMultiplier;
-    currentWallet += amount;
-    highestWallet = max(highestWallet, currentWallet);
-    let reactions = [
-      `Victory! Saved ${formatMoney(amount)}! Elon: "To the moon!" 🚀`,
-      `Victory! Saved ${formatMoney(amount)}! Trump: "Best audit ever!" 🇺🇸`
-    ];
-    message = random(reactions);
-    if (amount >= 1000) {
-      celebrateWin();
-    }
-    if (currentWallet >= 1000000 && !achievements.includes('Trillionaire')) {
-      achievements.push('Trillionaire');
-      message += "\nACHIEVEMENT: Trillionaire Savior! 💸";
-    }
-    pendingMultiplier = 1;
-    turnNumber++;
-    state = 'idle';
-  } else if (outcome.type === 'rugpull') {
-    message = `Game Over! Trump: "Swamp wins, sad!" 😡`;
-    currentWallet = 0;
-    state = 'idle';
-    isEnteringDetails = true;
-    createInputFields();
-  }
-  reactionTimer = millis() + 2000;
-}
-
-function celebrateWin() {
-  for (let i = 0; i < 100; i++) {
-    confetti.push(new ConfettiParticle());
+// Format money as $XXm or $XXbn
+function formatMoney(amount) {
+  if (amount >= 1000000000) { // Billions
+    let billions = Math.floor(amount / 1000000000);
+    return `$${billions}bn`;
+  } else if (amount >= 1000000) { // Millions
+    let millions = Math.floor(amount / 1000000);
+    return `$${millions}m`;
+  } else {
+    return "$0"; // Default for small amounts or zero
   }
 }
 
-function createInputFields() {
-  inputField = createInput('');
-  inputField.position(windowWidth / 2 - 100, windowHeight / 2 - 40);
-  inputField.size(200, 30);
-  inputField.style('font-size', '20px');
-
-  emailField = createInput('');
-  emailField.position(windowWidth / 2 - 100, windowHeight / 2 + 40);
-  emailField.size(200, 30);
-  emailField.style('font-size', '20px');
-}
-
-function shareOnX() {
-  saveCanvas('DOGE_Score', 'png');
-  const score = formatMoney(highestWallet);
-  const text = `I saved ${score} in DOGE: THE GAME! Beat me if you can! #DOGETheGame`;
-  const url = 'https://[your-username].github.io/doge-game/';
-  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
-}
-
-// Event Handlers
-function mouseWheel(event) {
-  if (mouseX > windowWidth - windowWidth / 4 - 20 && mouseX < windowWidth - 20 &&
-      mouseY > 20 && mouseY < windowHeight / 2 + 20) {
-    scrollOffset += event.delta / 10;
-  }
-}
-
+// Handle mouse clicks
 function mousePressed() {
-  if (showingLeaderboard) {
-    let shareX = windowWidth / 2 - 50;
-    let shareY = windowHeight - 100;
-    if (mouseX > shareX && mouseX < shareX + 100 && mouseY > shareY && mouseY < shareY + 40) {
-      shareOnX();
-    }
+  if (gameOver) {
+    // Restart game
+    currentWallet = 0;
+    turnNumber = 1;
+    gameOver = false;
+    state = 'idle';
+  } else {
+    startFlashing();
   }
 }
 
-function mouseMoved() {
-  let shareX = windowWidth / 2 - 50;
-  let shareY = windowHeight - 100;
-  isShareButtonHovered = (mouseX > shareX && mouseX < shareX + 100 && mouseY > shareY && mouseY < shareY + 40);
-}
-
-function keyPressed() {
-  if (isEnteringDetails && keyCode === ENTER) {
-    playerInitials = inputField.value().toUpperCase().substring(0, 3);
-    playerEmail = emailField.value();
-    if (playerInitials.length > 0) {
-      inputField.remove();
-      emailField.remove();
-      isEnteringDetails = false;
-      submitAndShowLeaderboard();
-    }
-  }
-}
-
-async function submitAndShowLeaderboard() {
-  await submitScore(playerInitials, highestWallet, playerEmail);
-  leaderboardData = await getLeaderboard();
-  totalSaved = await getTotalSaved();
-  showingLeaderboard = true;
+// Handle window resizing
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
 }

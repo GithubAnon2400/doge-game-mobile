@@ -2,7 +2,7 @@
 let currentWallet = 0;
 let turnNumber = 1;
 let state = 'idle';
-let message = 'Press START to begin auditing government waste!';
+let message = 'Tap START AUDIT to begin auditing government waste!';
 let isFlashing = false;
 let currentIndex = 0;
 let turnHistory = [];
@@ -35,7 +35,6 @@ let totalSaved = 0;
 let startButton, stopButton;
 let nextTurnTimer = 0;
 let delayBetweenTurns = 3000; // 3 seconds delay between audits
-let startSound, stopSound, gainSound, lossSound, celebrateSound;
 
 // Classes
 class Particle {
@@ -97,134 +96,145 @@ function shuffleOutcomes() {
 
 // Preload
 function preload() {
-  elonImage = loadImage(
-    'https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/elon_cartoon.png',
-    img => {
-      elonImage = img;
-      isElonImageLoaded = true;
-    },
-    () => console.error('Failed to load Elon image')
-  );
-  dogeImage = loadImage(
-    'https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/shiba_laster.png',
-    img => {
-      dogeImage = img;
-      isDogeImageLoaded = true;
-    },
-    () => console.error('Failed to load DOGE image')
-  );
-
-  // Load sound effects
-  startSound = loadSound('https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/start.mp3');
-  stopSound = loadSound('https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/stop.mp3');
-  gainSound = loadSound('https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/gain.mp3');
-  lossSound = loadSound('https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/loss.mp3');
-  celebrateSound = loadSound('https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/celebrate.mp3');
+  try {
+    elonImage = loadImage(
+      'https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/elon_cartoon.png',
+      img => {
+        elonImage = img;
+        isElonImageLoaded = true;
+      },
+      () => console.error('Failed to load Elon image')
+    );
+    dogeImage = loadImage(
+      'https://raw.githubusercontent.com/githubanon2400/doge-game_mobile/main/assets/shiba_laster.png',
+      img => {
+        dogeImage = img;
+        isDogeImageLoaded = true;
+      },
+      () => console.error('Failed to load DOGE image')
+    );
+  } catch (error) {
+    console.error('Image preload error:', error);
+  }
 }
 
 // Setup
 function setup() {
-  createCanvas(windowWidth, windowHeight);
-  textAlign(CENTER, CENTER);
-  textFont('Arial');
+  try {
+    createCanvas(windowWidth, windowHeight);
+    textAlign(CENTER, CENTER);
+    textFont('Arial');
 
-  // Create particles
-  let particleCount = windowWidth < 600 ? 20 : 40;
-  for (let i = 0; i < particleCount; i++) {
-    particles.push(new Particle());
+    // Create particles
+    let particleCount = windowWidth < 600 ? 20 : 40;
+    for (let i = 0; i < particleCount; i++) {
+      particles.push(new Particle());
+    }
+
+    // Create buttons
+    startButton = createButton('START AUDIT');
+    startButton.position(windowWidth / 2 - 80, windowHeight / 2 + 50);
+    startButton.mousePressed(startFlashing);
+    startButton.touchStarted(startFlashing); // Add touch support
+    startButton.style('font-size', `${windowWidth / 25}px`);
+    startButton.style('padding', '15px 30px');
+    startButton.show(); // Ensure visible on load
+
+    stopButton = createButton('STOP');
+    stopButton.position(windowWidth / 2 - 50, windowHeight - 100);
+    stopButton.mousePressed(stopFlashing);
+    stopButton.touchStarted(stopFlashing); // Add touch support
+    stopButton.style('font-size', `${windowWidth / 20}px`);
+    stopButton.style('padding', '15px 30px');
+    stopButton.hide();
+  } catch (error) {
+    console.error('Setup error:', error);
+    state = 'idle';
+    message = 'Error loading game. Tap START AUDIT to retry.';
   }
-
-  // Create buttons
-  startButton = createButton('START AUDIT');
-  startButton.position(windowWidth / 2 - 60, windowHeight / 2 + 50);
-  startButton.mousePressed(startFlashing);
-  startButton.style('font-size', `${windowWidth / 25}px`);
-  startButton.style('padding', '10px');
-  startButton.hide();
-
-  stopButton = createButton('STOP');
-  stopButton.position(windowWidth / 2 - 50, windowHeight - 100);
-  stopButton.mousePressed(stopFlashing);
-  stopButton.style('font-size', `${windowWidth / 20}px`);
-  stopButton.style('padding', '15px');
-  stopButton.hide();
 }
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
-  startButton.position(windowWidth / 2 - 60, windowHeight / 2 + 50);
+  startButton.position(windowWidth / 2 - 80, windowHeight / 2 + 50);
   stopButton.position(windowWidth / 2 - 50, windowHeight - 100);
   textSize(windowWidth / 20);
 }
 
 // Draw
 function draw() {
-  background(20);
+  try {
+    background(20);
 
-  // Draw particles
-  for (let particle of particles) {
-    particle.move();
-    particle.display();
-  }
-
-  // Draw confetti
-  for (let i = confetti.length - 1; i >= 0; i--) {
-    let c = confetti[i];
-    c.move();
-    c.display();
-    if (c.y > windowHeight) {
-      confetti.splice(i, 1);
+    // Draw particles
+    for (let particle of particles) {
+      particle.move();
+      particle.display();
     }
-  }
 
-  // Draw elon_cartoon.png always (bottom-left corner)
-  if (isElonImageLoaded && elonImage) {
-    image(elonImage, 30, windowHeight - (windowHeight / 3), windowWidth / 4, windowWidth / 4);
-  }
-
-  drawTitle();
-  drawWallet();
-  drawHistoryPanel();
-
-  // Show shiba_laster.png during delay for positive outcomes
-  if (state === 'idle' && millis() < nextTurnTimer && nextTurnTimer !== 0) {
-    if (isDogeImageLoaded && dogeImage) {
-      image(dogeImage, windowWidth / 2 - 100, windowHeight / 2 - 100, 200, 200);
+    // Draw confetti
+    for (let i = confetti.length - 1; i >= 0; i--) {
+      let c = confetti[i];
+      c.move();
+      c.display();
+      if (c.y > windowHeight) {
+        confetti.splice(i, 1);
+      }
     }
-  }
 
-  // Start next audit after delay
-  if (state === 'idle' && millis() > nextTurnTimer && nextTurnTimer !== 0) {
-    startFlashing();
-    nextTurnTimer = 0;
-  }
+    // Draw elon_cartoon.png always (bottom-left corner)
+    if (isElonImageLoaded && elonImage) {
+      image(elonImage, 30, windowHeight - (windowHeight / 3), windowWidth / 4, windowWidth / 4);
+    }
 
-  if (state === 'flashing' || state === 'processing') {
-    drawFlashingOutcome();
-  }
+    drawTitle();
+    drawWallet();
+    drawHistoryPanel();
 
-  if (millis() < reactionTimer) {
-    drawDogeReaction();
-  }
+    // Show shiba_laster.png during delay for positive outcomes
+    if (state === 'idle' && millis() < nextTurnTimer && nextTurnTimer !== 0) {
+      if (isDogeImageLoaded && dogeImage) {
+        image(dogeImage, windowWidth / 2 - 100, windowHeight / 2 - 100, 200, 200);
+      }
+    }
 
-  if (showingLeaderboard) {
-    drawLeaderboard();
-  } else if (isEnteringDetails) {
-    drawInputFields();
-  } else {
-    drawMessage();
-  }
+    // Start next audit after delay
+    if (state === 'idle' && millis() > nextTurnTimer && nextTurnTimer !== 0) {
+      startFlashing();
+      nextTurnTimer = 0;
+    }
 
-  // Button visibility
-  if (state === 'idle' && isFirstTurn) {
-    startButton.show();
-  } else {
-    startButton.hide();
-  }
-  if (state === 'flashing' && isFlashing) {
-    stopButton.show();
-  } else {
-    stopButton.hide();
+    if (state === 'flashing' || state === 'processing') {
+      drawFlashingOutcome();
+    }
+
+    if (millis() < reactionTimer) {
+      drawDogeReaction();
+    }
+
+    if (showingLeaderboard) {
+      drawLeaderboard();
+    } else if (isEnteringDetails) {
+      drawInputFields();
+    } else {
+      drawMessage();
+    }
+
+    // Button visibility
+    if (state === 'idle') {
+      startButton.show();
+    } else {
+      startButton.hide();
+    }
+    if (state === 'flashing') {
+      stopButton.show();
+    } else {
+      stopButton.hide();
+    }
+  } catch (error) {
+    console.error('Draw error:', error);
+    state = 'idle';
+    message = 'Error in game loop. Tap START AUDIT to retry.';
   }
 }
 
@@ -333,7 +343,6 @@ function startFlashing() {
     startTime = millis();
     timeLeft = 5000; // 5 seconds
     isFirstTurn = false;
-    if (startSound) startSound.play(); // Play start sound
   }
 }
 
@@ -342,7 +351,6 @@ function stopFlashing() {
     isFlashing = false;
     state = 'processing';
     lastOutcomeTime = millis();
-    if (stopSound) stopSound.play(); // Play stop sound
     applyOutcome(currentIndex);
   }
 }
@@ -361,14 +369,11 @@ function applyOutcome(i) {
     message = random(reactions);
     if (amount >= 1000) {
       celebrateWin();
-      if (celebrateSound) celebrateSound.play(); // Play celebrate sound for big wins
     }
     if (currentWallet >= 1000000 && !achievements.includes('Trillionaire')) {
       achievements.push('Trillionaire');
       message += "\nACHIEVEMENT: Trillionaire Savior! 💸";
-      if (celebrateSound) celebrateSound.play(); // Play celebrate sound for achievements
     }
-    if (gainSound) gainSound.play(); // Play gain sound for all positive outcomes
     pendingMultiplier = 1;
     turnNumber++;
     state = 'idle';
@@ -376,7 +381,6 @@ function applyOutcome(i) {
   } else if (outcome.type === 'rugpull') {
     message = `Game Over! Trump: "Swamp wins, sad!" 😡`;
     currentWallet = 0;
-    if (lossSound) lossSound.play(); // Play loss sound for rugpulls
     state = 'idle';
     isEnteringDetails = true;
     createInputFields();
@@ -434,6 +438,16 @@ function mouseMoved() {
   isShareButtonHovered = (mouseX > shareX && mouseX < shareX + 100 && mouseY > shareY && mouseY < shareY + 40);
 }
 
+function touchStarted() {
+  // Handle touch for buttons if mouse events aren't triggered
+  if (state === 'idle') {
+    startFlashing();
+  } else if (state === 'flashing') {
+    stopFlashing();
+  }
+  return false; // Prevent default touch behavior
+}
+
 function keyPressed() {
   if (isEnteringDetails && keyCode === ENTER) {
     playerInitials = inputField.value().toUpperCase().substring(0, 3);
@@ -448,8 +462,13 @@ function keyPressed() {
 }
 
 async function submitAndShowLeaderboard() {
-  await submitScore(playerInitials, highestWallet, playerEmail);
-  leaderboardData = await getLeaderboard();
-  totalSaved = await getTotalSaved();
-  showingLeaderboard = true;
+  try {
+    await submitScore(playerInitials, highestWallet, playerEmail);
+    leaderboardData = await getLeaderboard();
+    totalSaved = await getTotalSaved();
+    showingLeaderboard = true;
+  } catch (error) {
+    console.error('Leaderboard error:', error);
+    message = 'Error loading leaderboard. Try again.';
+  }
 }

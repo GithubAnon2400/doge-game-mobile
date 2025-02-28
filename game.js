@@ -1,19 +1,33 @@
 class Game {
     constructor(gameWidth, gameHeight) {
-        // ... existing code ...
+        this.gameWidth = gameWidth;
+        this.gameHeight = gameHeight;
+        
+        // Get reference to the canvas
+        this.gameCanvas = document.querySelector('#gameCanvas');
+        if (!this.gameCanvas) {
+            console.error('Could not find game canvas element');
+            return;
+        }
         
         // Add touch/click position tracking
         this.touchX = 0;
         this.isTouching = false;
         
         // Add touch/click event listeners
-        document.addEventListener('mousedown', (e) => this.handleInputStart(e));
-        document.addEventListener('mousemove', (e) => this.handleInputMove(e));
-        document.addEventListener('mouseup', () => this.handleInputEnd());
+        this.gameCanvas.addEventListener('mousedown', (e) => this.handleInputStart(e));
+        this.gameCanvas.addEventListener('mousemove', (e) => this.handleInputMove(e));
+        this.gameCanvas.addEventListener('mouseup', () => this.handleInputEnd());
         
-        document.addEventListener('touchstart', (e) => this.handleInputStart(e));
-        document.addEventListener('touchmove', (e) => this.handleInputMove(e));
-        document.addEventListener('touchend', () => this.handleInputEnd());
+        this.gameCanvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Prevent scrolling
+            this.handleInputStart(e);
+        });
+        this.gameCanvas.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // Prevent scrolling
+            this.handleInputMove(e);
+        });
+        this.gameCanvas.addEventListener('touchend', () => this.handleInputEnd());
     }
     
     handleInputStart(e) {
